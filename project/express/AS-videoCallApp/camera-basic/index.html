@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera Demo</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    video {
+      width: 640px;
+      max-width: 100%;
+      border: 1px solid #ccc;
+    }
+
+    #info {
+      margin-top: 10px;
+    }
+
+    #toggleBtn {
+      margin-top: 15px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Camera Preview</h2>
+
+  <video id="video" autoplay playsinline muted></video>
+
+  <div id="info">
+    <p>Resolution: <span id="resolution">-</span></p>
+    <p>Frame Rate: <span id="framerate">-</span></p>
+  </div>
+
+  <button id="toggleBtn">Turn Camera Off</button>
+
+  <script>
+    const video = document.getElementById("video");
+    const resolutionEl = document.getElementById("resolution");
+    const framerateEl = document.getElementById("framerate");
+    const toggleBtn = document.getElementById("toggleBtn");
+
+    let stream = null;
+    let cameraOn = false;
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 }
+          },
+          audio: false
+        });
+
+        video.srcObject = stream;
+
+        const track = stream.getVideoTracks()[0];
+        const settings = track.getSettings();
+        console.log(track.getSettings());
+        
+
+        resolutionEl.textContent =
+          `${settings.width || video.videoWidth} × ${settings.height || video.videoHeight}`;
+
+        framerateEl.textContent =
+          settings.frameRate
+            ? `${settings.frameRate} fps`
+            : "Unavailable";
+
+        cameraOn = true;
+        toggleBtn.textContent = "Turn Camera Off";
+
+      } catch (err) {
+        console.error("Camera access failed:", err);
+        alert("Unable to access camera.");
+      }
+    }
+
+    function stopCamera() {
+      if (!stream) return;
+
+      stream.getTracks().forEach(track => track.stop());
+
+      video.srcObject = null;
+
+      resolutionEl.textContent = "-";
+      framerateEl.textContent = "-";
+
+      stream = null;
+      cameraOn = false;
+      toggleBtn.textContent = "Turn Camera On";
+    }
+
+    toggleBtn.addEventListener("click", async () => {
+      if (cameraOn) {
+        stopCamera();
+      } else {
+        await startCamera();
+      }
+    });
+
+    startCamera();
+  </script>
+
+</body>
+
+</html>
