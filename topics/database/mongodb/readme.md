@@ -1,0 +1,1 @@
+Studies related to mongodb technologies should be done in this folder.

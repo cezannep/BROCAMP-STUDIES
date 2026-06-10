@@ -1,0 +1,1 @@
+Studies related to database technologies should be done in this folder.

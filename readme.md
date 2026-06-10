@@ -1,4 +1,4 @@
-# 🚀 Collaborative Learning Repository
+# Collaborative Learning Repository
 
 Welcome to our Collaborative Learning Repository!
 
@@ -74,7 +74,7 @@ repo/
 
 ---
 
-# 📚 What Can Be Added?
+# What Can Be Added?
 
 Any topic related to software development, including:
 
