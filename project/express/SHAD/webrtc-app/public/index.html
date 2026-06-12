@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>WebRTC Video Chat</title>
+
+  <style>
+    video {
+      width: 300px;
+      border: 1px solid #ccc;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>WebRTC Video Chat</h2>
+
+  <button id="offerBtn">Create Offer</button>
+  <button id="joinBtn">Join</button>
+
+  <br><br>
+
+  <video
+    id="localVideo"
+    autoplay
+    playsinline
+    muted
+  ></video>
+
+  <video
+    id="remoteVideo"
+    autoplay
+    playsinline
+  ></video>
+
+  <script src="/socket.io/socket.io.js"></script>
+
+  <script>
+    const socket = io();
+
+    let peerConnection;
+    let localStream;
+
+    const localVideo =
+      document.getElementById("localVideo");
+
+    const remoteVideo =
+      document.getElementById("remoteVideo");
+
+    const configuration = {
+      iceServers: [
+        {
+          urls: "stun:stun.l.google.com:19302"
+        }
+      ]
+    };
+
+    async function getLocalMedia() {
+      if (localStream) return localStream;
+
+      localStream =
+        await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+
+      localVideo.srcObject = localStream;
+
+      return localStream;
+    }
+
+    async function createPeerConnection() {
+
+      if (peerConnection) return;
+
+      peerConnection =
+        new RTCPeerConnection(configuration);
+
+      peerConnection.onconnectionstatechange = () => {
+
+        console.log(
+          "Connection:",
+          peerConnection.connectionState
+        );
+
+        if (
+          peerConnection.connectionState ===
+          "connected"
+        ) {
+          console.log("connected!");
+        }
+      };
+
+      peerConnection.onicecandidate = (event) => {
+
+        if (event.candidate) {
+          socket.emit(
+            "ice-candidate",
+            event.candidate
+          );
+        }
+      };
+
+      peerConnection.ontrack = (event) => {
+
+        console.log("Remote track received");
+
+        remoteVideo.srcObject =
+          event.streams[0];
+      };
+
+      const stream = await getLocalMedia();
+
+      stream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, stream);
+      });
+    }
+
+    // ------------------------
+    // JOIN
+    // ------------------------
+
+    document
+      .getElementById("joinBtn")
+      .addEventListener("click", async () => {
+
+        await getLocalMedia();
+        await createPeerConnection();
+
+        console.log("Waiting for offer...");
+      });
+
+    // ------------------------
+    // CREATE OFFER
+    // ------------------------
+
+    document
+      .getElementById("offerBtn")
+      .addEventListener("click", async () => {
+
+        await getLocalMedia();
+        await createPeerConnection();
+
+        const offer =
+          await peerConnection.createOffer();
+
+        await peerConnection.setLocalDescription(
+          offer
+        );
+
+        socket.emit(
+          "offer",
+          peerConnection.localDescription
+        );
+
+        console.log("Offer sent");
+      });
+
+    // ------------------------
+    // RECEIVE OFFER
+    // ------------------------
+
+    socket.on("offer", async (offer) => {
+
+      if (!peerConnection) {
+        await createPeerConnection();
+      }
+
+      console.log("Offer received");
+
+      await peerConnection.setRemoteDescription(
+        new RTCSessionDescription(offer)
+      );
+
+      const answer =
+        await peerConnection.createAnswer();
+
+      await peerConnection.setLocalDescription(
+        answer
+      );
+
+      socket.emit(
+        "answer",
+        peerConnection.localDescription
+      );
+
+      console.log("Answer sent");
+    });
+
+    // ------------------------
+    // RECEIVE ANSWER
+    // ------------------------
+
+    socket.on("answer", async (answer) => {
+
+      console.log("Answer received");
+
+      await peerConnection.setRemoteDescription(
+        new RTCSessionDescription(answer)
+      );
+    });
+
+    // ------------------------
+    // RECEIVE ICE
+    // ------------------------
+
+    socket.on(
+      "ice-candidate",
+      async (candidate) => {
+
+        try {
+          if (peerConnection) {
+            await peerConnection.addIceCandidate(
+              new RTCIceCandidate(candidate)
+            );
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    );
+  </script>
+
+</body>
+</html>
